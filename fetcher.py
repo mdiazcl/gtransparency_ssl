@@ -1,5 +1,4 @@
-import requests
-from csv import reader
+import requests, json
 from models import Certificate, Issuer
 
 def __getGoogleData__(domain, include_expired=False, include_subdomains=False, next_line=None):
@@ -21,9 +20,9 @@ def __dataLineToCertificate__(dataline):
     certificate.valid_from = dataline[3]
     certificate.valid_to = dataline[4]
     certificate.google_id = dataline[5]
-    certificate.ct_logs = dataline[6]
-    # ignoreit = dataline[7]  # I dont know what this data representes
-    certificate.dnsnames = dataline[8]
+    #certificate.ct_logs = dataline[6]
+    #ignoreit = dataline[7]  # I dont know what this data representes
+    #certificate.dnsnames = dataline[8]
 
     return certificate
 
@@ -31,71 +30,37 @@ def __dataLineToIssuer__(dataline):
     issuer = Issuer()
 
     issuer.issuer_uid = dataline[0]
-    issuer.google_id = dataline[2]
-    issuer.path = dataline[4]
-    issuer.certs_issued = dataline[6]
+    issuer.google_id = dataline[1]
+    issuer.path = dataline[2]
+    issuer.certs_issued = dataline[3]
 
     return issuer
 
 def __parseData__(data):
     # Separate them line by line
-    buffer = data.split('\n')
-    buffer = buffer[2:]  # Delete some garbage at the beggining
-    buffer = buffer[:-2] # delete more garbage at the end
-
-    if len(buffer) < 3:
-        return None, None, None
+    buffer = data
+    buffer = buffer[7:]  # Delete some garbage at the beggining
+    buffer = buffer[:-1] # delete more garbage at the end
 
     # Returned Data
     certificate_list = []
     issuer_list = []
     next_line = None
 
-    # Get data (first half are Certificates, second half are Issuers)
-    # The first line requires special treatment, because Google's JSON hates me
-    first = False
-    certificates_done = False
-    issuers_done = False
+    data = json.loads(buffer)
+    json_certs = data[1]
+    json_issuers = data[2]
+    json_page = data[3]
 
-    for line in buffer:
-        if first is False:
-            line = line.split('[[')
-            line = "\"" + line[2][1:]
-            dataline = line[:-1].split(",")
-            certificate = __dataLineToCertificate__(dataline)
-            certificate_list.append(certificate)
+    for dataline in json_certs:
+        cert = __dataLineToCertificate__(dataline)
+        certificate_list.append(cert)
 
-            first = True
-        elif certificates_done is False:
-            if line == "]":
-                certificates_done = True
-            else:
-                # Process Certificate
-                line = line[2:-1]
-                dataline = line.split(',')
-                certificate = __dataLineToCertificate__(dataline)
-                certificate_list.append(certificate)
+    for dataline in json_issuers:
+        issuer = __dataLineToIssuer__(dataline)
+        issuer_list.append(issuer)
 
-        elif issuers_done is False:
-            if line == "]":
-                issuers_done = True
-            else:
-                # Process Issuers
-                if "[[" in line:
-                    line = line[3:-1]
-                else:
-                    line = line[2:-1]
-
-                dataline = [x for x in reader(line)]
-                issuer = __dataLineToIssuer__(dataline)
-                issuer_list.append(issuer)
-
-        else:
-            line = line[2:-1]
-            dataline = line.split(',')
-            next_line = dataline[1][1:-1]
-            if next_line == "ul":
-                next_line = None
+    next_line = json_page[1]
 
     return certificate_list,issuer_list,next_line
 
