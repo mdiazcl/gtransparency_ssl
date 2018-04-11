@@ -9,6 +9,7 @@ __pycache__/
 # Pycharm
 .idea
 env/
+unit_test.py
 
 # Distribution / packaging
 .Python

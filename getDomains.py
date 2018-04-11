@@ -1,7 +1,17 @@
 from fetcher import fetchData
-import time
+import time, sys
 
-certificados, entidades = fetchData("mdiazlira.com", include_subdomains=True, include_expired=True)
+if len(sys.argv) != 2:
+	print "Solo un argumento, el dominio"
+	exit()
+
+print '===================='
+print ' Gathering for: {0}'.format(sys.argv[1])
+print '===================='
+print ''
+
+
+certificados, entidades = fetchData(sys.argv[1], include_subdomains=True, include_expired=True)
 for certificado in certificados:
 	fr = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(certificado.valid_from/1000))
 	to = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(certificado.valid_to/1000))
